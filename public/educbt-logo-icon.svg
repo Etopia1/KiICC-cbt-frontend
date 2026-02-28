@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="80" height="80" role="img" aria-label="EduCBT Pro Icon">
+  <defs>
+    <linearGradient id="iconGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+    <filter id="glow2">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="80" height="80" rx="18" ry="18" fill="url(#iconGrad2)" filter="url(#glow2)"/>
+
+  <!-- Graduation cap: brim polygon -->
+  <polygon points="40,18 68,30 40,42 12,30" fill="white" opacity="0.95"/>
+
+  <!-- Cap top square -->
+  <rect x="33" y="14" width="14" height="14" rx="3" fill="white" opacity="0.85" transform="rotate(-2,40,21)"/>
+
+  <!-- Tassel vertical line -->
+  <line x1="68" y1="30" x2="68" y2="52" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.85"/>
+  <!-- Tassel dot -->
+  <circle cx="68" cy="55" r="4" fill="white" opacity="0.85"/>
+
+  <!-- Left string -->
+  <path d="M40 42 L40 56 Q28 64 26 60" stroke="white" stroke-width="2.5" fill="none" stroke-linecap="round" opacity="0.65"/>
+
+  <!-- Small circuit dots at bottom -->
+  <circle cx="22" cy="68" r="2.5" fill="white" opacity="0.35"/>
+  <circle cx="58" cy="68" r="2.5" fill="white" opacity="0.35"/>
+  <line x1="25" y1="68" x2="55" y2="68" stroke="white" stroke-width="1.5" stroke-dasharray="4,4" opacity="0.2"/>
+</svg>

@@ -1,0 +1,177 @@
+@import "tailwindcss";
+
+/* ── Design Tokens ────────────────────────────────────────── */
+:root {
+  font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+  --primary-gold: #c5a059;
+  --accent-gold:  #e2c08d;
+  --deep-gold:    #8b6b23;
+  --bg-white:     #FFFFFF;
+  --bg-soft:      #faf7f3;
+  --text-main:    #1a150e;
+  --text-muted:   #8a7564;
+  --shadow-sm:  0 2px 4px rgba(0,0,0,0.02), 0 1px 0 rgba(0,0,0,0.02);
+  --shadow-md:  0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+  --shadow-lg:  0 10px 15px -3px rgba(0,0,0,0.04), 0 4px 6px -2px rgba(0,0,0,0.02);
+  --shadow-xl:  0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02);
+  --shadow-gold:0 10px 40px -10px rgba(197,160,89,0.2);
+}
+
+/* ── Reset ────────────────────────────────────────────────── */
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  background-color: #faf7f3;
+  color: #1a150e;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 5px; }
+::-webkit-scrollbar-track { background: #f5f0e8; }
+::-webkit-scrollbar-thumb { background: #e2c08d; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #c5a059; }
+
+/* ── Headings ─────────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  @apply tracking-tight font-black uppercase italic;
+}
+
+/* ── Warm Color Overrides ─────────────────────────────────── */
+/* Replace cold Tailwind slate tones with warm browns.        */
+/* !important is needed to override the JIT utility classes.  */
+.text-slate-900 { color: #1a150e      !important; }
+.text-slate-800 { color: #2e2118      !important; }
+.text-slate-700 { color: #4d3d2d      !important; }
+.text-slate-600 { color: #6b5a4a      !important; }
+.text-slate-500 { color: #8a7564      !important; }
+.text-slate-400 { color: #a89282      !important; }
+.text-slate-300 { color: #c4b09a      !important; }
+.text-slate-200 { color: #ddd0c3      !important; }
+.text-slate-100 { color: #f0e8da      !important; }
+
+.bg-slate-900   { background-color: #1a150e !important; }
+.bg-slate-800   { background-color: #2e2118 !important; }
+.bg-slate-700   { background-color: #4d3d2d !important; }
+.bg-slate-50    { background-color: #faf7f3 !important; }
+.bg-slate-100   { background-color: #f5efea !important; }
+.bg-slate-200   { background-color: #ede3d4 !important; }
+
+.border-slate-100 { border-color: #ede3d4 !important; }
+.border-slate-200 { border-color: #e3d5c3 !important; }
+
+.divide-slate-50  > * + * { border-color: #f0e8da !important; }
+.divide-slate-100 > * + * { border-color: #ede3d4 !important; }
+
+/* ── Animations ───────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slowGlow {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.1); }
+}
+.animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16,1,0.3,1) forwards; }
+.animate-slow-glow  { animation: slowGlow 8s ease-in-out infinite; }
+
+/* ── Premium Card ─────────────────────────────────────────── */
+.premium-card {
+  background: #ffffff;
+  border: 1px solid #ede3d4;
+  border-radius: 2.5rem;
+  transition: all 500ms;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+.premium-card:hover {
+  border-color: rgba(197,160,89,0.3);
+  box-shadow: var(--shadow-gold);
+}
+
+/* ── Input Field ──────────────────────────────────────────── */
+.input-field {
+  display: block;
+  width: 100%;
+  padding: 1rem 1.5rem;
+  background: #fff9f2;
+  border: 1.5px solid #e3d5c3;
+  border-radius: 1rem;
+  outline: none;
+  transition: all 300ms;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: #1a150e;
+}
+.input-field:focus        { border-color: #c5a059; box-shadow: 0 0 0 4px rgba(197,160,89,0.1); }
+.input-field::placeholder { color: #b5a290; }
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem 2.5rem;
+  border-radius: 1rem;
+  font-weight: 900;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  transition: all 500ms;
+  position: relative;
+  overflow: hidden;
+  background: #1a120b;
+  color: #c5a059;
+  border: 1px solid rgba(197,160,89,0.2);
+}
+.btn-primary:hover  { transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.2); background: #000; color: #e2c08d; border-color: #c5a059; }
+.btn-primary:active { transform: scale(0.95); }
+
+.btn-gold {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem 2.5rem;
+  border-radius: 1rem;
+  font-weight: 900;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  transition: all 500ms;
+  background: linear-gradient(135deg, #e2c08d 0%, #c5a059 100%);
+  color: white;
+  box-shadow: var(--shadow-gold);
+}
+.btn-gold:hover { transform: translateY(-4px) scale(1.02); filter: brightness(1.05); box-shadow: 0 15px 45px -10px rgba(197,160,89,0.4); }
+
+/* ── Text Gradient ────────────────────────────────────────── */
+.gold-text-gradient {
+  background: linear-gradient(135deg, #8b6b23 0%, #c5a059 45%, #e2c08d 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ── Navigation ───────────────────────────────────────────── */
+.nav-blur {
+  background: rgba(255,253,248,0.88);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+
+/* ── Utilities ────────────────────────────────────────────── */
+.font-outfit    { font-family: 'Outfit', sans-serif; }
+.gold-border-glow { border-color: rgba(197,160,89,0.3); box-shadow: 0 0 20px rgba(197,160,89,0.1); }
+
+/* ── Table Warm Styling ───────────────────────────────────── */
+table thead th  { background-color: #faf7f3; color: #8a7564; }
+table tbody tr:hover { background-color: #fdf9f4; }
+
+/* ── Form Select & Inputs ─────────────────────────────────── */
+select option { background: #fff9f2; color: #1a150e; }

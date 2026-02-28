@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80" role="img" aria-label="EduCBT Pro Logo">
+  <defs>
+    <linearGradient id="iconGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+    <linearGradient id="proGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#818cf8"/>
+      <stop offset="100%" style="stop-color:#c084fc"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Icon background rounded square -->
+  <rect x="4" y="8" width="64" height="64" rx="16" ry="16" fill="url(#iconGrad)" filter="url(#glow)" opacity="0.95"/>
+
+  <!-- Graduation cap base (mortarboard platform) -->
+  <polygon points="36,22 60,33 36,44 12,33" fill="white" opacity="0.95"/>
+
+  <!-- Graduation cap top (square top) -->
+  <rect x="30" y="19" width="12" height="12" rx="2" fill="white" opacity="0.85" transform="rotate(-1,36,25)"/>
+
+  <!-- Tassel line -->
+  <line x1="60" y1="33" x2="60" y2="52" stroke="white" stroke-width="2.5" stroke-linecap="round" opacity="0.8"/>
+  <circle cx="60" cy="54" r="3" fill="white" opacity="0.8"/>
+
+  <!-- Cap string left side of hat hanging down -->
+  <path d="M36 44 L36 56 Q26 62 24 58" stroke="white" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.7"/>
+
+  <!-- Circuit dot accents (tech feel) -->
+  <circle cx="18" cy="60" r="2" fill="white" opacity="0.4"/>
+  <circle cx="54" cy="60" r="2" fill="white" opacity="0.4"/>
+  <line x1="20" y1="60" x2="52" y2="60" stroke="white" stroke-width="1" stroke-dasharray="3,3" opacity="0.25"/>
+
+  <!-- Wordmark: EduCBT -->
+  <text
+    x="84"
+    y="44"
+    font-family="'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif"
+    font-size="28"
+    font-weight="800"
+    letter-spacing="-0.5"
+    fill="white">EduCBT</text>
+
+  <!-- Wordmark: Pro (gradient) -->
+  <text
+    x="84"
+    y="68"
+    font-family="'Segoe UI', 'Inter', 'Helvetica Neue', Arial, sans-serif"
+    font-size="14"
+    font-weight="600"
+    letter-spacing="3"
+    fill="url(#proGrad)">PRO  ·  CBT PLATFORM</text>
+</svg>

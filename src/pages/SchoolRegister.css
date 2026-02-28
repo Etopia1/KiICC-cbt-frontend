@@ -1,0 +1,177 @@
+/* SchoolRegister.css */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400;700&display=swap');
+
+.register-container {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #f8f9fa;
+    padding: 2rem;
+    font-family: 'Lato', sans-serif;
+}
+
+.register-card {
+    background: #ffffff;
+    padding: 4rem 3rem;
+    max-width: 550px;
+    width: 100%;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+    /* Soft, elegant shadow */
+    border: 1px solid #eaeaea;
+    /* Very subtle border */
+    border-radius: 8px;
+    /* Slightly less rounded for classic feel */
+}
+
+.register-header {
+    text-align: center;
+    margin-bottom: 3rem;
+}
+
+.register-title {
+    font-family: 'Playfair Display', serif;
+    /* Classic Serif Font */
+    font-size: 2.5rem;
+    color: #1a1a1a;
+    font-weight: 700;
+    margin-bottom: 0.75rem;
+    letter-spacing: -0.5px;
+}
+
+.register-subtitle {
+    color: #666;
+    font-size: 1rem;
+    font-style: italic;
+    font-family: 'Playfair Display', serif;
+}
+
+/* Logo Upload & Preview */
+.logo-upload-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+.logo-upload-label {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background-color: #f0f2f5;
+    border: 2px dashed #cbd5e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.logo-upload-label:hover {
+    border-color: #4a5568;
+    background-color: #e2e8f0;
+}
+
+.logo-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.upload-placeholder {
+    font-size: 0.8rem;
+    color: #718096;
+    text-align: center;
+    padding: 0.5rem;
+    font-weight: 600;
+}
+
+.hidden-input {
+    display: none;
+}
+
+/* Unified Form */
+.register-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.form-group {
+    position: relative;
+}
+
+.styled-input {
+    width: 100%;
+    padding: 0.9rem 1rem;
+    background-color: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 4px;
+    /* Classic, slightly squared */
+    font-size: 1rem;
+    color: #2d3748;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    font-family: 'Lato', sans-serif;
+}
+
+.styled-input::placeholder {
+    color: #a0aec0;
+}
+
+.styled-input:focus {
+    border-color: #2b6cb0;
+    box-shadow: 0 0 0 3px rgba(43, 108, 176, 0.1);
+    /* Subtle blue glow */
+    outline: none;
+}
+
+/* Group Inputs in a Row */
+.input-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.register-btn {
+    margin-top: 1.5rem;
+    width: 100%;
+    padding: 1rem;
+    background-color: #1a202c;
+    /* Strict Black/Dark Gray */
+    color: #fff;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.1s;
+    font-family: 'Lato', sans-serif;
+}
+
+.register-btn:hover {
+    background-color: #000;
+    transform: translateY(-1px);
+}
+
+.register-footer {
+    text-align: center;
+    margin-top: 2rem;
+    font-size: 0.95rem;
+    color: #718096;
+}
+
+.login-link {
+    color: #2b6cb0;
+    text-decoration: none;
+    font-weight: 700;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.2s;
+}
+
+.login-link:hover {
+    border-bottom-color: #2b6cb0;
+}
