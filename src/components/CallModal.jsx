@@ -24,7 +24,7 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
 
     const localVideoRef = useRef(null);
     const localStreamRef = useRef(null);
-    const peerConnections = useRef({}); 
+    const peerConnections = useRef({});
     const timerRef = useRef(null);
 
     const callType = callState?.callType || 'voice';
@@ -40,17 +40,27 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
 
     const getLocalStream = useCallback(async () => {
         try {
-            const constraints = { 
-                audio: true, 
-                video: callType === 'video' ? { width: 1280, height: 720 } : false 
+            const constraints = {
+                audio: true,
+                video: callType === 'video' ? { width: 1280, height: 720 } : false
             };
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             localStreamRef.current = stream;
             if (localVideoRef.current) localVideoRef.current.srcObject = stream;
             return stream;
         } catch (err) {
-            console.error('Media error:', err);
-            return await navigator.mediaDevices.getUserMedia({ audio: true, video: false }).catch(() => null);
+            console.error('[MEDIA] Access Error:', err);
+            let msg = 'Failed to access camera or microphone.';
+            if (err.name === 'NotAllowedError') msg = 'Camera/Mic permission denied. Please enable them in settings.';
+            if (err.name === 'NotFoundError') msg = 'No camera or microphone found.';
+
+            // Lazy import toast to avoid circular dep if any, or just use console as fallback
+            try { toast.error(msg); } catch (e) { console.error(msg); }
+
+            return await navigator.mediaDevices.getUserMedia({ audio: true, video: false }).catch(() => {
+                try { toast.error('Audio access also failed.'); } catch (e) { }
+                return null;
+            });
         }
     }, [callType]);
 
@@ -166,7 +176,7 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
         const handleIceCandidate = async ({ candidate, fromSocketId }) => {
             const pc = peerConnections.current[fromSocketId];
             if (pc && pc.remoteDescription) {
-                pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => {});
+                pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => { });
             } else if (candidate) {
                 if (!pendingCandidates.current[fromSocketId]) pendingCandidates.current[fromSocketId] = [];
                 pendingCandidates.current[fromSocketId].push(candidate);
@@ -205,7 +215,7 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
             console.log('[CallModal] Unmounting - Cleaning up tracks and PCs');
             localStreamRef.current?.getTracks().forEach(t => t.stop());
             Object.values(peerConnections.current).forEach(pc => pc.close());
-            
+
             socket?.off('call_room_peers');
             socket?.off('peer_joined_call');
             socket?.off('rtc_offer');
@@ -253,7 +263,7 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
                 videoTrack.onended = () => {
                     stopScreenShare();
                 };
-                
+
                 if (localVideoRef.current) localVideoRef.current.srcObject = screenStream;
                 setSharing(true);
             } else {
@@ -280,135 +290,145 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
 
     return (
         <div className={`fixed z-100 bg-[#0a0a0a] transition-all duration-500 font-outfit overflow-hidden
-            ${isMinimized 
-                ? 'bottom-10 right-10 w-80 h-48 rounded-3xl shadow-2xl border border-white/10' 
+            ${isMinimized
+                ? 'bottom-10 right-10 w-80 h-48 rounded-3xl shadow-2xl border border-white/10'
                 : 'inset-0 flex flex-col animate-fade-in'
             }`}>
-            
+
             {isMinimized && (
-                <div className="absolute inset-0 flex items-center justify-center bg-black group overflow-hidden">
-                    <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover mirror opacity-40" />
-                    <div className="absolute top-4 right-4 flex gap-2 z-50">
-                        <button onClick={() => setIsMinimized(false)} className="p-2 bg-white/10 rounded-lg hover:bg-white/20 text-white">
-                            <Maximize2 size={16} />
+                <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a] group overflow-hidden border border-white/5 rounded-3xl">
+                    <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover mirror opacity-50" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
+                    <div className="absolute top-3 right-3 flex gap-2 z-50">
+                        <button onClick={() => setIsMinimized(false)} className="p-1.5 bg-white/10 backdrop-blur-md rounded-lg hover:bg-white/20 text-white transition-colors">
+                            <Maximize2 size={14} />
                         </button>
-                        <button onClick={onClose} className="p-2 bg-rose-500 rounded-lg hover:bg-rose-600 text-white">
-                            <X size={16} />
+                        <button onClick={onClose} className="p-1.5 bg-rose-500 rounded-lg hover:bg-rose-600 text-white transition-colors">
+                            <X size={14} />
                         </button>
                     </div>
-                    <div className="text-center">
-                        <p className="text-white text-xs font-black uppercase italic tracking-widest">{callState.callerName || callState.targetName}</p>
-                        <p className="text-emerald-500 text-[10px] font-bold">{fmt(duration)}</p>
+                    <div className="absolute bottom-4 left-4 right-4 text-left">
+                        <p className="text-white text-[10px] font-bold uppercase tracking-widest opacity-60">Active Session</p>
+                        <h4 className="text-white text-sm font-bold truncate">{callState.callerName || callState.targetName}</h4>
+                        <div className="flex items-center gap-1.5 mt-1">
+                            <div className="w-1.5 h-1.5 bg-sky-400 rounded-full animate-pulse" />
+                            <p className="text-sky-400 text-[10px] font-medium">{fmt(duration)}</p>
+                        </div>
                     </div>
                 </div>
             )}
 
             {!isMinimized && (
                 <>
-            {/* Header Info */}
-            <div className="absolute top-8 left-8 z-20 flex flex-col gap-1">
-                <div className="flex items-center gap-2">
-                    <div className={`w-2.5 h-2.5 rounded-full animate-pulse shadow-lg ${callType === 'video' ? 'bg-blue-500' : 'bg-emerald-500'}`} />
-                    <span className="text-white/60 text-[10px] font-black uppercase tracking-[0.2em]">
-                        Encrypted {callType === 'video' ? 'Visual' : 'Aural'} Intelligence Session
-                    </span>
-                </div>
-                <h2 className="text-white text-3xl font-black italic uppercase tracking-tighter">
-                    {callState.groupName ? callState.groupName : (callState.callerName || callState.targetName)}
-                </h2>
-                <span className="text-white/30 text-xs font-bold">{fmt(duration)} • {Object.keys(peers).length + 1} Participants</span>
-            </div>
-
-            {/* Main Stage */}
-            <div className="flex-1 relative flex items-center justify-center p-6 mt-16 pb-32">
-                {phase === 'ringing' ? (
-                    <div className="flex flex-col items-center gap-12 text-center animate-bounce-slow">
-                         <div className="relative">
-                            <div className="w-40 h-40 rounded-full bg-[#D4AF37]/10 border-4 border-[#D4AF37]/20 flex items-center justify-center text-[#D4AF37] text-7xl font-black uppercase shadow-2xl">
-                                {callState.callerName?.charAt(0)}
-                            </div>
-                            <div className="absolute inset-0 rounded-full border-4 border-[#D4AF37]/40 animate-ping opacity-20" />
+                    {/* Header Info */}
+                    <div className="absolute top-8 left-8 z-20 flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full animate-pulse shadow-lg ${callType === 'video' ? 'bg-sky-400' : 'bg-emerald-400'}`} />
+                            <span className="text-white/40 text-[10px] font-bold uppercase tracking-wider">
+                                {callType === 'video' ? 'Secure Video' : 'Secure Voice'} Session • P2P Encrypted
+                            </span>
                         </div>
-                        <div className="space-y-4">
-                            <p className="text-[#D4AF37] font-black uppercase tracking-[0.4em] text-xs">Incoming Call</p>
-                            <h3 className="text-5xl font-black text-white italic tracking-tighter uppercase">{callState.callerName}</h3>
-                        </div>
-                        <div className="flex gap-8">
-                            <button onClick={onClose} className="w-20 h-20 rounded-full bg-rose-500 flex items-center justify-center shadow-2xl hover:bg-rose-600 transition-all hover:scale-110 active:scale-95 group">
-                                <PhoneOff size={32} className="text-white group-hover:rotate-12 transition-transform" />
-                            </button>
-                            <button onClick={handleAccept} className="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center shadow-2xl hover:bg-emerald-600 transition-all hover:scale-110 active:scale-95 group">
-                                <Phone size={32} className="text-white group-hover:-rotate-12 transition-transform" />
-                            </button>
+                        <h2 className="text-white text-3xl font-bold tracking-tight">
+                            {callState.groupName ? callState.groupName : (callState.callerName || callState.targetName)}
+                        </h2>
+                        <div className="flex items-center gap-2 text-white/40 text-xs font-medium">
+                            <span className="bg-white/5 px-2 py-0.5 rounded-md border border-white/10">{fmt(duration)}</span>
+                            <span>•</span>
+                            <span>{Object.keys(peers).length + 1} Participants</span>
                         </div>
                     </div>
-                ) : (
-                    <div className={`w-full h-full grid gap-4 ${
-                        Object.keys(peers).length === 0 ? 'grid-cols-1' : 
-                        Object.keys(peers).length === 1 ? 'grid-cols-1 md:grid-cols-2' : 
-                        'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-                    }`}>
-                        {/* Remote Peers */}
-                        {Object.entries(peers).map(([id, peer]) => (
-                            <div key={id} className="relative rounded-4xl overflow-hidden bg-white/5 border border-white/10 group">
-                                {peer.stream ? (
-                                    <video autoPlay playsInline ref={el => { if(el) el.srcObject = peer.stream }} className="w-full h-full object-cover" />
-                                ) : (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-                                        <div className="w-24 h-24 rounded-full bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37] text-4xl font-black border border-[#D4AF37]/20 shadow-xl">
-                                            {peer.name?.charAt(0)}
-                                        </div>
-                                        <p className="text-white/40 text-[10px] font-black uppercase tracking-widest">Connecting Peer...</p>
+
+                    {/* Main Stage */}
+                    <div className="flex-1 relative flex items-center justify-center p-6 mt-16 pb-32">
+                        {phase === 'ringing' ? (
+                            <div className="flex flex-col items-center gap-12 text-center">
+                                <div className="relative">
+                                    <div className="w-32 h-32 rounded-full bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 text-5xl font-bold shadow-2xl backdrop-blur-3xl">
+                                        {callState.callerName?.charAt(0)}
                                     </div>
-                                )}
-                                <div className="absolute bottom-6 left-6 flex items-center gap-3 bg-black/60 backdrop-blur-xl px-4 py-2 rounded-2xl border border-white/10">
-                                    <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                                    <span className="text-white text-[11px] font-black uppercase italic tracking-tighter">{peer.name}</span>
+                                    <div className="absolute inset-0 rounded-full border border-sky-500/40 animate-ping opacity-20" />
+                                    <div className="absolute -inset-4 rounded-full border border-white/5 animate-pulse" />
+                                </div>
+                                <div className="space-y-4">
+                                    <p className="text-sky-400 font-bold uppercase tracking-[0.3em] text-[10px]">Incoming {callType} Call</p>
+                                    <h3 className="text-5xl font-bold text-white tracking-tight">{callState.callerName}</h3>
+                                    <p className="text-white/40 text-sm font-medium">Connecting from School Hub</p>
+                                </div>
+                                <div className="flex gap-12">
+                                    <button onClick={onClose} className="w-16 h-16 rounded-full bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-rose-500 shadow-2xl hover:bg-rose-500 hover:text-white transition-all hover:scale-110 active:scale-95 group">
+                                        <PhoneOff size={24} className="group-hover:rotate-12 transition-transform" />
+                                    </button>
+                                    <button onClick={handleAccept} className="w-20 h-20 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-[0_0_50px_-12px_rgba(16,185,129,0.5)] hover:bg-emerald-400 transition-all hover:scale-110 active:scale-95 group">
+                                        <Phone size={32} className="group-hover:-rotate-12 transition-transform" />
+                                    </button>
                                 </div>
                             </div>
-                        ))}
-
-                        {/* Local Video */}
-                        <div className={`relative rounded-4xl overflow-hidden bg-white/5 border border-[#D4AF37]/20 group ${Object.keys(peers).length === 0 ? 'max-w-4xl mx-auto' : ''}`}>
-                            <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover mirror" />
-                            {(videoOff || callType === 'voice') && (
-                                <div className="absolute inset-0 bg-[#0f0f0f] flex flex-col items-center justify-center gap-6">
-                                    <div className="relative">
-                                        <div className="w-32 h-32 rounded-full bg-[#D4AF37]/10 flex items-center justify-center text-[#D4AF37] text-4xl font-black border-2 border-[#D4AF37]/20 shadow-2xl">
-                                            {currentUser?.fullName?.charAt(0)}
-                                        </div>
-                                        <div className="absolute -bottom-2 -right-2 p-3 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-xl">
-                                            {muted ? <MicOff size={20} className="text-rose-500" /> : <Mic size={20} className="text-[#D4AF37]" />}
+                        ) : (
+                            <div className={`w-full h-full grid gap-4 ${Object.keys(peers).length === 0 ? 'grid-cols-1' :
+                                Object.keys(peers).length === 1 ? 'grid-cols-1 md:grid-cols-2' :
+                                    'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                                }`}>
+                                {/* Remote Peers */}
+                                {Object.entries(peers).map(([id, peer]) => (
+                                    <div key={id} className="relative rounded-4xl overflow-hidden bg-white/5 border border-white/10 group">
+                                        {peer.stream ? (
+                                            <video autoPlay playsInline ref={el => { if (el) el.srcObject = peer.stream }} className="w-full h-full object-cover" />
+                                        ) : (
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                                                <div className="w-20 h-20 rounded-full bg-sky-500/10 flex items-center justify-center text-sky-400 text-3xl font-bold border border-sky-500/20 shadow-xl">
+                                                    {peer.name?.charAt(0)}
+                                                </div>
+                                                <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">Connecting Peer...</p>
+                                            </div>
+                                        )}
+                                        <div className="absolute bottom-6 left-6 flex items-center gap-3 bg-black/40 backdrop-blur-xl px-3 py-1.5 rounded-xl border border-white/10">
+                                            <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+                                            <span className="text-white text-[11px] font-bold tracking-tight">{peer.name}</span>
                                         </div>
                                     </div>
-                                    <p className="text-white font-black text-xl italic uppercase tracking-tighter">{currentUser?.fullName}</p>
+                                ))}
+
+                                {/* Local Video */}
+                                <div className={`relative rounded-4xl overflow-hidden bg-white/5 border border-sky-500/10 group ${Object.keys(peers).length === 0 ? 'max-w-4xl mx-auto aspect-video' : ''}`}>
+                                    <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover mirror" />
+                                    {(videoOff || callType === 'voice') && (
+                                        <div className="absolute inset-0 bg-[#0f0f0f] flex flex-col items-center justify-center gap-6">
+                                            <div className="relative">
+                                                <div className="w-28 h-28 rounded-full bg-sky-500/10 flex items-center justify-center text-sky-400 text-4xl font-bold border border-sky-500/20 shadow-2xl">
+                                                    {currentUser?.fullName?.charAt(0)}
+                                                </div>
+                                                <div className="absolute -bottom-1 -right-1 p-2 bg-white/5 rounded-xl border border-white/10 backdrop-blur-xl">
+                                                    {muted ? <MicOff size={18} className="text-rose-500" /> : <Mic size={18} className="text-sky-400" />}
+                                                </div>
+                                            </div>
+                                            <p className="text-white font-bold text-lg tracking-tight">{currentUser?.fullName}</p>
+                                        </div>
+                                    )}
+                                    <div className="absolute bottom-6 left-6 flex items-center gap-3 bg-sky-500 px-3 py-1.5 rounded-xl shadow-xl shadow-sky-500/10">
+                                        <span className="text-white text-[11px] font-bold tracking-tight">You</span>
+                                    </div>
                                 </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Control Bar */}
+                    {phase !== 'ringing' && !isMinimized && (
+                        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 flex items-center gap-5 px-8 py-5 bg-white/5 backdrop-blur-3xl rounded-3xl border border-white/10 shadow-2xl">
+                            <ControlBtn icon={isMinimized ? Maximize2 : Minimize2} active={false} onClick={() => setIsMinimized(!isMinimized)} />
+                            <div className="w-px h-8 bg-white/10 mx-1" />
+                            <ControlBtn icon={muted ? MicOff : Mic} active={!muted} onClick={toggleMute} color={muted ? 'bg-rose-500' : 'bg-sky-500'} />
+                            {callType === 'video' && (
+                                <>
+                                    <ControlBtn icon={videoOff ? VideoOff : Video} active={!videoOff} onClick={toggleVideo} color={videoOff ? 'bg-rose-500' : 'bg-white/10'} />
+                                    <ControlBtn icon={sharing ? ScreenShareOff : ScreenShare} active={sharing} onClick={toggleScreenShare} color={sharing ? 'bg-sky-500' : 'bg-white/10'} />
+                                </>
                             )}
-                            <div className="absolute bottom-6 left-6 flex items-center gap-3 bg-[#D4AF37] px-4 py-2 rounded-2xl shadow-xl shadow-[#D4AF37]/10 border border-[#D4AF37]/20">
-                                <span className="text-[#1A120B] text-[11px] font-black uppercase italic tracking-tighter">You (Authorized)</span>
-                            </div>
+                            <button onClick={onClose} className="w-14 h-14 rounded-2xl bg-rose-500 flex items-center justify-center text-white shadow-xl hover:bg-rose-600 transition-all hover:scale-110 active:scale-95 group">
+                                <PhoneOff size={24} className="group-hover:rotate-12 transition-transform" />
+                            </button>
                         </div>
-                    </div>
-                )}
-            </div>
-
-            {/* Control Bar */}
-            {phase !== 'ringing' && !isMinimized && (
-                <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-30 flex items-center gap-6 px-10 py-6 bg-white/5 backdrop-blur-3xl rounded-4xl border border-white/10 shadow-2xl">
-                    <ControlBtn icon={isMinimized ? Maximize2 : Minimize2} active={false} onClick={() => setIsMinimized(!isMinimized)} />
-                    <ControlBtn icon={muted ? MicOff : Mic} active={!muted} onClick={toggleMute} color={muted ? 'bg-rose-500' : 'bg-[#D4AF37]'} />
-                    {callType === 'video' && (
-                        <>
-                            <ControlBtn icon={videoOff ? VideoOff : Video} active={!videoOff} onClick={toggleVideo} color={videoOff ? 'bg-rose-500' : 'bg-white/10'} />
-                            <ControlBtn icon={sharing ? ScreenShareOff : ScreenShare} active={sharing} onClick={toggleScreenShare} color={sharing ? 'bg-sky-500' : 'bg-white/10'} />
-                        </>
                     )}
-                    <button onClick={onClose} className="w-16 h-16 rounded-3xl bg-rose-500 flex items-center justify-center text-white shadow-2xl hover:bg-rose-600 transition-all hover:scale-110 active:scale-95 group">
-                        <PhoneOff size={28} className="group-hover:rotate-12 transition-transform" />
-                    </button>
-                    <ControlBtn icon={Users} active={false} onClick={() => {}} />
-                </div>
-            )}
 
                 </>
             )}
@@ -425,8 +445,8 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
 };
 
 const ControlBtn = ({ icon: Icon, active, onClick, color = 'bg-white/10', disabled }) => (
-    <button 
-        onClick={onClick} 
+    <button
+        onClick={onClick}
         disabled={disabled}
         className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all hover:scale-110 active:scale-90 disabled:opacity-20
             ${active ? `${color} text-white shadow-lg` : 'bg-transparent border border-white/10 text-white/40 hover:bg-white/5 hover:text-white'}

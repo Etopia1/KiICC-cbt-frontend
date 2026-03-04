@@ -6,14 +6,15 @@ import CallModal from '../components/CallModal';
 
 const SocketContext = createContext();
 
-const API = 'https://educbt-pro-backend.onrender.com';
+const API = import.meta.env.VITE_API_URL || 'https://educbt-pro-backend.onrender.com';
 
 export const SocketProvider = ({ children }) => {
     const { token, user } = useSelector(state => state.auth);
     const [socket, setSocket] = useState(null);
+    const [connectionStatus, setConnectionStatus] = useState('disconnected');
     const [callState, setCallState] = useState(null);
     const [adminNotifications, setAdminNotifications] = useState([]);
-    
+
     // Audio refs
     const ringingAudio = useRef(null);
     const outgoingAudio = useRef(null);
@@ -26,8 +27,30 @@ export const SocketProvider = ({ children }) => {
         outgoingAudio.current.loop = true;
 
         if (token && user) {
-            const s = io(API, { auth: { token } });
+            const s = io(API, {
+                auth: { token },
+                reconnection: true,
+                reconnectionAttempts: 5,
+                reconnectionDelay: 1000
+            });
+
             setSocket(s);
+
+            s.on('connect', () => {
+                setConnectionStatus('connected');
+                console.log('[SOCKET] Connected to signaling server');
+            });
+
+            s.on('connect_error', (err) => {
+                setConnectionStatus('error');
+                console.error('[SOCKET] Connection Error:', err.message);
+                toast.error('Network sync issue. Retrying...');
+            });
+
+            s.on('disconnect', (reason) => {
+                setConnectionStatus('disconnected');
+                console.warn('[SOCKET] Disconnected:', reason);
+            });
 
             const userId = user._id || user.id;
             if (!userId) {
@@ -35,7 +58,7 @@ export const SocketProvider = ({ children }) => {
             }
 
             s.emit('join_personal', userId);
-            if (user.role === 'school_admin') {
+            if (user.role === 'school_admin' || user.role === 'admin') {
                 s.emit('join_admin_monitor', user.schoolId);
             }
             s.emit('join_school_staff', user.schoolId);
@@ -43,8 +66,8 @@ export const SocketProvider = ({ children }) => {
             // CALL SIGNALING
             s.on('incoming_call', (data) => {
                 setCallState({ ...data, incoming: true });
-                ringingAudio.current.play().catch(() => {});
-                
+                ringingAudio.current.play().catch(() => { });
+
                 // Browser notification
                 if (Notification.permission === 'granted') {
                     new Notification(`${data.callType === 'video' ? '📹 Video' : '📞 Voice'} Call`, {
@@ -117,7 +140,7 @@ export const SocketProvider = ({ children }) => {
             isGroup
         });
 
-        outgoingAudio.current.play().catch(() => {});
+        outgoingAudio.current.play().catch(() => { });
 
         if (isGroup) {
             socket.emit('call_group', {
@@ -151,22 +174,22 @@ export const SocketProvider = ({ children }) => {
     }, [socket, callState]);
 
     return (
-        <SocketContext.Provider value={{ 
-            socket, 
-            callState, 
+        <SocketContext.Provider value={{
+            socket,
+            callState,
             setCallState,
-            startCall, 
-            endCall, 
+            startCall,
+            endCall,
             stopAllAudio,
-            adminNotifications 
+            adminNotifications
         }}>
             {children}
             {callState && (
-                <CallModal 
-                    socket={socket} 
-                    currentUser={user} 
-                    callState={callState} 
-                    onClose={endCall} 
+                <CallModal
+                    socket={socket}
+                    currentUser={user}
+                    callState={callState}
+                    onClose={endCall}
                 />
             )}
         </SocketContext.Provider>
