@@ -10,9 +10,30 @@ const ICE_SERVERS = {
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        { urls: 'stun:stun4.l.google.com:19302' },
     ]
 };
 
+const RemoteVideo = ({ stream, name }) => {
+    const videoRef = useRef(null);
+
+    useEffect(() => {
+        if (videoRef.current && stream) {
+            console.log(`[Video] Attaching stream to video element for ${name}`);
+            videoRef.current.srcObject = stream;
+        }
+    }, [stream, name]);
+
+    return (
+        <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            className="w-full h-full object-cover"
+        />
+    );
+};
 const CallModal = ({ socket, currentUser, callState, onClose }) => {
     const [phase, setPhase] = useState(callState.incoming ? 'ringing' : 'connecting');
     const [muted, setMuted] = useState(false);
@@ -42,8 +63,13 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
         try {
             const constraints = {
                 audio: true,
-                video: callType === 'video' ? { width: 1280, height: 720 } : false
+                video: callType === 'video' ? {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'user'
+                } : false
             };
+            console.log('[MEDIA] Requesting stream with constraints:', constraints);
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             localStreamRef.current = stream;
             if (localVideoRef.current) localVideoRef.current.srcObject = stream;
@@ -53,6 +79,7 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
             let msg = 'Failed to access camera or microphone.';
             if (err.name === 'NotAllowedError') msg = 'Camera/Mic permission denied. Please enable them in settings.';
             if (err.name === 'NotFoundError') msg = 'No camera or microphone found.';
+            if (err.name === 'OverconstrainedError') msg = 'Camera does not support requested resolution.';
 
             // Lazy import toast to avoid circular dep if any, or just use console as fallback
             try { toast.error(msg); } catch (e) { console.error(msg); }
@@ -108,27 +135,45 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
         };
 
         pc.ontrack = (event) => {
-            const [remoteStream] = event.streams;
-            addPeer(remoteSocketId, { stream: remoteStream });
+            console.log(`[WebRTC] Received remote track from ${remoteSocketId}. Kind: ${event.track.kind}`);
+            setPeers(prev => {
+                const existing = prev[remoteSocketId] || {};
+                let stream = existing.stream;
+                if (!stream) {
+                    stream = new MediaStream();
+                }
+                // Check if track already in stream to avoid warnings
+                if (!stream.getTracks().some(t => t.id === event.track.id)) {
+                    stream.addTrack(event.track);
+                }
+                return { ...prev, [remoteSocketId]: { ...existing, stream, name: existing.name || 'Remote Peer' } };
+            });
         };
 
         pc.onconnectionstatechange = () => {
+            console.log(`[WebRTC] Connection state with ${remoteSocketId}: ${pc.connectionState}`);
             if (['connected', 'completed'].includes(pc.connectionState)) setPhase('connected');
-            if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) removePeer(remoteSocketId);
+            if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
+                console.warn(`[WebRTC] Connection failed/closed with ${remoteSocketId}`);
+                removePeer(remoteSocketId);
+            }
         };
 
-        // Add any candidates that arrived before PC was ready
-        if (pendingCandidates.current[remoteSocketId]) {
-            pendingCandidates.current[remoteSocketId].forEach(cand => {
-                pc.addIceCandidate(new RTCIceCandidate(cand)).catch(e => console.error('[WebRTC] ICE Queue Error:', e));
-            });
-            delete pendingCandidates.current[remoteSocketId];
-        }
+        pc.oniceconnectionstatechange = () => {
+            console.log(`[WebRTC] ICE state with ${remoteSocketId}: ${pc.iceConnectionState}`);
+            if (pc.iceConnectionState === 'failed') {
+                pc.restartIce();
+            }
+        };
 
         return pc;
-    }, [socket, removePeer, addPeer]);
+    }, [socket, removePeer]);
 
     const joinRoom = useCallback(async () => {
+        if (localStreamRef.current) {
+            console.log('[CallModal] Already joined or stream exists. Skipping join.');
+            return;
+        }
         setPhase('connecting');
         const stream = await getLocalStream();
         if (!stream) return onClose();
@@ -145,10 +190,12 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
         if (!socket) return;
 
         const handlePeers = async ({ peers: existingPeers }) => {
+            console.log(`[WebRTC] Room joined. Initial peers:`, existingPeers);
             for (const peerId of existingPeers) {
                 const pc = createPeerConnection(peerId);
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
+                console.log(`[WebRTC] Sending OFFER to ${peerId}`);
                 socket.emit('rtc_offer', { targetSocketId: peerId, offer, roomId });
             }
             // Auto-transition to connected phase if we are joining and there are peers
@@ -161,23 +208,52 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
         };
 
         const handleOffer = async ({ offer, fromSocketId }) => {
+            console.log(`[WebRTC] Received OFFER from ${fromSocketId}`);
             const pc = createPeerConnection(fromSocketId);
-            await pc.setRemoteDescription(new RTCSessionDescription(offer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            socket.emit('rtc_answer', { targetSocketId: fromSocketId, answer });
+            try {
+                await pc.setRemoteDescription(new RTCSessionDescription(offer));
+                console.log(`[WebRTC] Remote description set for ${fromSocketId}`);
+
+                // Process queued candidates now that remote description is set
+                if (pendingCandidates.current[fromSocketId]) {
+                    console.log(`[WebRTC] Processing ${pendingCandidates.current[fromSocketId].length} queued candidates for ${fromSocketId}`);
+                    for (const cand of pendingCandidates.current[fromSocketId]) {
+                        await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(e => console.error('[WebRTC] ICE Queue Error:', e));
+                    }
+                    delete pendingCandidates.current[fromSocketId];
+                }
+
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                console.log(`[WebRTC] Sending ANSWER to ${fromSocketId}`);
+                socket.emit('rtc_answer', { targetSocketId: fromSocketId, answer });
+            } catch (err) {
+                console.error('[WebRTC] Error handling offer:', err);
+            }
         };
 
         const handleAnswer = async ({ answer, fromSocketId }) => {
+            console.log(`[WebRTC] Received ANSWER from ${fromSocketId}`);
             const pc = peerConnections.current[fromSocketId];
-            if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer));
+            if (pc) {
+                try {
+                    await pc.setRemoteDescription(new RTCSessionDescription(answer));
+                    console.log(`[WebRTC] Remote description (answer) set for ${fromSocketId}`);
+                } catch (err) {
+                    console.error('[WebRTC] Error setting remote description from answer:', err);
+                }
+            } else {
+                console.warn(`[WebRTC] Received answer for non-existent peer: ${fromSocketId}`);
+            }
         };
 
         const handleIceCandidate = async ({ candidate, fromSocketId }) => {
             const pc = peerConnections.current[fromSocketId];
             if (pc && pc.remoteDescription) {
-                pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(() => { });
+                console.log(`[WebRTC] Adding ICE candidate from ${fromSocketId}`);
+                pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(e => console.error('[WebRTC] ICE Error:', e));
             } else if (candidate) {
+                console.log(`[WebRTC] Queueing ICE candidate from ${fromSocketId}`);
                 if (!pendingCandidates.current[fromSocketId]) pendingCandidates.current[fromSocketId] = [];
                 pendingCandidates.current[fromSocketId].push(candidate);
             }
@@ -372,7 +448,7 @@ const CallModal = ({ socket, currentUser, callState, onClose }) => {
                                 {Object.entries(peers).map(([id, peer]) => (
                                     <div key={id} className="relative rounded-4xl overflow-hidden bg-white/5 border border-white/10 group">
                                         {peer.stream ? (
-                                            <video autoPlay playsInline ref={el => { if (el) el.srcObject = peer.stream }} className="w-full h-full object-cover" />
+                                            <RemoteVideo stream={peer.stream} name={peer.name} />
                                         ) : (
                                             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
                                                 <div className="w-20 h-20 rounded-full bg-sky-500/10 flex items-center justify-center text-sky-400 text-3xl font-bold border border-sky-500/20 shadow-xl">
